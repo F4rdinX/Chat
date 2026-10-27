@@ -3,112 +3,269 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instant Link</title>
-    <!-- PeerJS CDN for direct browser-to-browser connection -->
+    <title>Secure Relay</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 15px; display: flex; flex-direction: column; height: 88vh; justify-content: space-between; box-sizing: border-box; }
-        .header { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
-        .chat-box { flex: 1; background: #1e293b; border-radius: 8px; padding: 12px; overflow-y: auto; margin: 10px 0; display: flex; flex-direction: column; gap: 8px; }
-        .msg { padding: 8px 12px; border-radius: 6px; max-width: 85%; word-break: break-all; font-size: 15px; }
-        .msg.sent { background: #3b82f6; align-self: flex-end; }
+        :root {
+            --bg-main: #0f172a;
+            --bg-sidebar: #1e293b;
+            --bg-chat: #0b1329;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --border: #334155;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-main); color: var(--text-main); margin: 0; padding: 0; height: 100vh; display: flex; overflow: hidden; }
+        
+        /* Modal Overlay */
+        #authModal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-box { background: var(--bg-sidebar); padding: 25px; border-radius: 12px; width: 320px; border: 1px solid var(--border); text-align: center; }
+        .modal-box h3 { margin-top: 0; color: var(--text-main); }
+        .modal-box input { width: 100%; padding: 10px; margin: 10px 0 15px 0; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-main); color: white; box-sizing: border-box; }
+        .modal-box button { width: 100%; padding: 10px; background: var(--accent); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        
+        /* App Layout */
+        .app-container { display: flex; width: 100%; height: 100%; }
+        
+        /* Sidebar (WhatsApp Style) */
+        .sidebar { width: 300px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; background: #111827; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .chat-item:hover, .chat-item.active { background: #334155; }
+        .chat-info div:first-child { font-weight: bold; font-size: 14px; }
+        .chat-info div:last-child { font-size: 12px; color: var(--text-sub); }
+        
+        /* Chat Main Area */
+        .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); }
+        .chat-header { padding: 15px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .messages-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; word-break: break-all; font-size: 14px; }
+        .msg.sent { background: var(--accent); align-self: flex-end; }
         .msg.received { background: #334155; align-self: flex-start; }
-        .input-area { display: flex; gap: 8px; }
-        input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 16px; outline: none; }
-        button { padding: 12px 18px; border-radius: 8px; border: none; background: #22c55e; color: white; font-weight: bold; cursor: pointer; font-size: 15px; }
-        button:active { background: #16a34a; }
-        .status { font-size: 12px; color: #94a3b8; }
+        
+        /* Input Area */
+        .input-area { padding: 15px; background: var(--bg-sidebar); display: flex; gap: 10px; border-top: 1px solid var(--border); }
+        .input-area input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-main); color: white; font-size: 15px; outline: none; }
+        .input-area button { padding: 0 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        .btn-danger { background: #dc2626 !important; font-size: 12px; padding: 6px 10px; border-radius: 4px; border: none; color: white; cursor: pointer; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div>Status: <span id="status" style="color: #facc15;">Connecting...</span></div>
-        <button onclick="copyMyId()" style="padding: 4px 8px; font-size: 12px; background: #475569;">Copy ID</button>
+    <!-- Auth Modal for Role Selection -->
+    <div id="authModal">
+        <div class="modal-box">
+            <h3>Secure Chat Portal</h3>
+            <p style="font-size: 13px; color: var(--text-sub);">Enter Admin Key or Guest ID</p>
+            <input type="text" id="userInputId" placeholder="Enter ID..." autocomplete="off">
+            <button onclick="initializePortal()">Enter Chat</button>
+        </div>
     </div>
 
-    <div class="chat-box" id="chatBox">
-        <div class="msg received">System: Connection starting...</div>
-    </div>
+    <!-- Main App UI (Hidden initially) -->
+    <div class="app-container hidden" id="appContainer">
+        <!-- Sidebar for Admin / Chat List -->
+        <div class="sidebar" id="sidebarSection">
+            <div class="sidebar-header">
+                <span>Active Chats</span>
+                <button onclick="createNewGuestSession()" style="background: #16a34a; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">+ New Chat</button>
+            </div>
+            <div class="chat-list" id="chatList">
+                <!-- Active chat items will appear here -->
+            </div>
+        </div>
 
-    <div class="input-area">
-        <input type="text" id="messageInput" placeholder="Type text or OTP..." autocomplete="off">
-        <button onclick="sendText()">Send</button>
+        <!-- Chat Window -->
+        <div class="chat-main">
+            <div class="chat-header">
+                <div>Connected with: <span id="activePeerName" style="color: #38bdf8; font-weight: bold;">None</span></div>
+                <button class="btn-danger" onclick="endCurrentChat()">End & Vanish Chat</button>
+            </div>
+            <div class="messages-box" id="messagesBox">
+                <div class="msg received">System: Welcome to secure ephemeral channel.</div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="messageInput" placeholder="Message" autocomplete="off">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        // ইউনিক আইডি জেনারেট বা ফিক্সড রাখার লজিক
-        // আপনি চাইলে নিজের জন্য 'fardin-primary' এবং তার জন্য 'other-device' আইডি ফিক্সড করে দিতে পারেন
-        const myPeerId = prompt("Enter your ID (e.g., 'fardin' or 'guest'):", "fardin");
-        const peer = new Peer(myPeerId);
-        let conn = null;
+        const ADMIN_MASTER_KEY = "fardin_admin_master_key_999"; // আপনার গোপন অ্যাডমিন কি
+        let peer = null;
+        let isAdmin = false;
+        let activePeerId = null;
+        let connections = {}; // { peerId: dataConnection }
+        let chatHistories = {}; // { peerId: [messages] }
 
-        const statusEl = document.getElementById('status');
-        const chatBox = document.getElementById('chatBox');
-        const input = document.getElementById('messageInput');
+        function initializePortal() {
+            const inputVal = document.getElementById('userInputId').value.trim();
+            if(!inputVal) return alert("Please enter an ID!");
 
-        peer.on('open', (id) => {
-            statusEl.innerText = `Ready (ID: ${id})`;
-            statusEl.style.color = '#22c55e';
-            
-            // অটো কানেক্ট করার অপশন
-            let targetId = prompt("Enter peer's ID to connect:", myPeerId === 'fardin' ? 'guest' : 'fardin');
-            if(targetId) connectToPeer(targetId);
-        });
-
-        function connectToPeer(id) {
-            statusEl.innerText = `Connecting to ${id}...`;
-            conn = peer.connect(id);
-            
-            conn.on('open', () => {
-                statusEl.innerText = `Connected with ${id}`;
-                statusEl.style.color = '#22c55e';
-            });
-            
-            conn.on('data', (data) => {
-                appendMsg(data, 'received');
-            });
-        }
-
-        peer.on('connection', (c) => {
-            conn = c;
-            statusEl.innerText = `Connected with ${conn.peer}`;
-            statusEl.style.color = '#22c55e';
-            
-            conn.on('data', (data) => {
-                appendMsg(data, 'received');
-            });
-        });
-
-        function sendText() {
-            const text = input.value.trim();
-            if(!text) return;
-            
-            if(conn && conn.open) {
-                conn.send(text);
-                appendMsg(text, 'sent');
-                input.value = '';
+            if(inputVal === ADMIN_MASTER_KEY) {
+                isAdmin = true;
+                // Admin gets a unique master peer id
+                startPeer("fardin_admin_" + Math.floor(Math.random() * 1000));
             } else {
-                alert("Not connected to anyone yet!");
+                isAdmin = false;
+                // Guest connects directly using the ID they typed (which Admin gave them)
+                startPeer(inputVal);
             }
         }
 
-        function appendMsg(text, type) {
+        function startPeer(id) {
+            peer = new Peer(id);
+
+            peer.on('open', (assignedId) => {
+                document.getElementById('authModal').classList.add('hidden');
+                document.getElementById('appContainer').classList.remove('hidden');
+
+                if(!isAdmin) {
+                    // If guest, automatically connect to the admin master peer
+                    // For simplicity, guest connects to a fixed or dynamic admin handle
+                    // Or we can let guest connect to whatever ID they entered if it's paired
+                    document.getElementById('sidebarSection').classList.add('hidden'); // Guests don't need sidebar
+                    connectToAdmin();
+                } else {
+                    alert("Admin Logged In! You can create new guest sessions.");
+                }
+            });
+
+            peer.on('connection', (conn) => {
+                setupConnection(conn);
+            });
+        }
+
+        function connectToAdmin() {
+            // Guest connecting to admin (admin id pattern starts with fardin_admin_)
+            // For production, the guest inputs the exact Admin-generated Guest ID
+            // Here we map the session. Let's make guest connect to the specific ID they used.
+            let adminTarget = prompt("Enter Admin's active ID to connect:", "");
+            if(!adminTarget) return;
+
+            let conn = peer.connect(adminTarget);
+            setupConnection(conn);
+        }
+
+        function setupConnection(conn) {
+            connections[conn.peer] = conn;
+            if(!chatHistories[conn.peer]) chatHistories[conn.peer] = [];
+
+            if(isAdmin) {
+                addChatToList(conn.peer);
+                setActiveChat(conn.peer);
+            } else {
+                setActivePeerDisplay(conn.peer);
+            }
+
+            conn.on('data', (data) => {
+                chatHistories[conn.peer].push({text: data, sender: 'received'});
+                if(activePeerId === conn.peer) {
+                    appendMsgToUI(data, 'received');
+                } else {
+                    // Highlight unread if needed
+                }
+            });
+
+            conn.on('close', () => {
+                removeChatSession(conn.peer);
+            });
+        }
+
+        function createNewGuestSession() {
+            let guestId = "guest_" + Math.random().toString(36).substring(7);
+            prompt("Give this Guest ID to the person:", guestId);
+            // Admin listens for incoming connection from this guest ID
+        }
+
+        function addChatToList(peerId) {
+            const list = document.getElementById('chatList');
+            if(document.getElementById('item_' + peerId)) return;
+
+            const div = document.createElement('div');
+            div.className = 'chat-item';
+            div.id = 'item_' + peerId;
+            div.innerHTML = `<div class="chat-info"><div>${peerId}</div><div>Active Session</div></div>`;
+            div.onclick = () => setActiveChat(peerId);
+            list.appendChild(div);
+        }
+
+        function setActiveChat(peerId) {
+            activePeerId = peerId;
+            document.getElementById('activePeerName').innerText = peerId;
+            
+            // Highlight sidebar
+            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+            let item = document.getElementById('item_' + peerId);
+            if(item) item.classList.add('active');
+
+            // Load history
+            const box = document.getElementById('messagesBox');
+            box.innerHTML = '';
+            if(chatHistories[peerId]) {
+                chatHistories[peerId].forEach(m => appendMsgToUI(m.text, m.sender));
+            }
+        }
+
+        function setActivePeerDisplay(name) {
+            document.getElementById('activePeerName').innerText = name;
+            activePeerId = name;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            if(!text || !activePeerId) return;
+
+            if(connections[activePeerId] && connections[activePeerId].open) {
+                connections[activePeerId].send(text);
+                chatHistories[activePeerId].push({text: text, sender: 'sent'});
+                appendMsgToUI(text, 'sent');
+                input.value = '';
+            } else {
+                alert("Connection is not active!");
+            }
+        }
+
+        function appendMsgToUI(text, type) {
+            const box = document.getElementById('messagesBox');
             const div = document.createElement('div');
             div.className = `msg ${type}`;
             div.textContent = text;
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
         }
 
-        input.addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') sendText();
+        function endCurrentChat() {
+            if(!activePeerId) return;
+            if(connections[activePeerId]) {
+                connections[activePeerId].close();
+            }
+            removeChatSession(activePeerId);
+        }
+
+        function removeChatSession(peerId) {
+            delete connections[peerId];
+            delete chatHistories[peerId];
+            
+            let item = document.getElementById('item_' + peerId);
+            if(item) item.remove();
+
+            if(activePeerId === peerId) {
+                activePeerId = null;
+                document.getElementById('activePeerName').innerText = "None";
+                document.getElementById('messagesBox').innerHTML = '<div class="msg received">System: Chat ended and vanished.</div>';
+            }
+        }
+
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') sendMessage();
         });
-
-        function copyMyId() {
-            navigator.clipboard.writeText(peer.id);
-            alert("ID Copied: " + peer.id);
-        }
     </script>
 </body>
 </html>

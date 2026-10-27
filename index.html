@@ -17,7 +17,7 @@
         }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-main); color: var(--text-main); margin: 0; padding: 0; height: 100vh; display: flex; overflow: hidden; }
         
-        /* Single Modal */
+        /* Modal */
         #authModal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .modal-box { background: var(--bg-sidebar); padding: 30px; border-radius: 12px; width: 320px; border: 1px solid var(--border); text-align: center; }
         .modal-box h3 { margin-top: 0; color: var(--text-main); }
@@ -25,10 +25,10 @@
         .modal-box button { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
         
         /* App Layout */
-        .app-container { display: flex; width: 100%; height: 100%; }
+        .app-container { display: flex; width: 100%; height: 100%; position: relative; }
         
-        /* Sidebar (WhatsApp Style) */
-        .sidebar { width: 300px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        /* Sidebar */
+        .sidebar { width: 320px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
         .sidebar-header { padding: 15px; background: #111827; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
         .chat-list { flex: 1; overflow-y: auto; }
         .chat-item { padding: 14px 15px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
@@ -37,14 +37,14 @@
         .chat-info div:last-child { font-size: 12px; color: var(--text-sub); }
         
         /* Chat Main Area */
-        .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); }
+        .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); z-index: 5; }
         .chat-header { padding: 15px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .messages-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
         .msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; word-break: break-all; font-size: 15px; }
         .msg.sent { background: var(--accent); align-self: flex-end; }
         .msg.received { background: #334155; align-self: flex-start; }
         
-        /* File Card inside chat */
+        /* File Card */
         .file-card { background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 10px; margin-top: 5px; border: 1px solid rgba(255,255,255,0.1); }
         .file-card a { color: #38bdf8; text-decoration: none; font-weight: bold; font-size: 13px; }
         .file-card a:hover { text-decoration: underline; }
@@ -57,17 +57,28 @@
         .send-btn { padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         
         .btn-danger { background: #dc2626 !important; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: none; color: white; cursor: pointer; }
+        .back-btn { display: none; background: #475569; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 14px; cursor: pointer; margin-right: 10px; }
+        
         .hidden { display: none !important; }
+
+        /* Mobile Responsive View (WhatsApp Style) */
+        @media (max-width: 768px) {
+            .back-btn { display: inline-block; }
+            .sidebar { width: 100%; position: absolute; inset: 0; transition: transform 0.3s ease; }
+            .sidebar.mobile-hidden { transform: translateX(-100%); }
+            .chat-main { width: 100%; position: absolute; inset: 0; transition: transform 0.3s ease; transform: translateX(100%); }
+            .chat-main.mobile-active { transform: translateX(0); }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Single Clean Modal -->
+    <!-- Single Modal -->
     <div id="authModal">
         <div class="modal-box">
             <h3>Secure Chat</h3>
-            <p style="font-size: 13px; color: var(--text-sub);">Enter your ID to continue</p>
-            <input type="text" id="userInputId" placeholder="Enter ID..." autocomplete="off">
+            <p style="font-size: 13px; color: var(--text-sub);">Enter your ID</p>
+            <input type="text" id="userInputId" placeholder="ID..." autocomplete="off">
             <button onclick="connectPortal()">Enter</button>
         </div>
     </div>
@@ -84,17 +95,20 @@
         </div>
 
         <!-- Chat Window -->
-        <div class="chat-main">
+        <div class="chat-main" id="chatMainSection">
             <div class="chat-header">
-                <div>Chat with: <span id="activePeerName" style="color: #38bdf8; font-weight: bold;">None</span></div>
-                <button class="btn-danger" id="endChatBtn" onclick="endCurrentChat()">End & Vanish</button>
+                <div style="display: flex; align-items: center;">
+                    <button class="back-btn" onclick="backToSidebar()">←</button>
+                    <span>Chat with: <span id="activePeerName" style="color: #38bdf8; font-weight: bold;">None</span></span>
+                </div>
+                <button class="btn-danger" onclick="endCurrentChat()">End & Vanish</button>
             </div>
             <div class="messages-box" id="messagesBox">
                 <div class="msg received">System: Ready.</div>
             </div>
             <div class="input-area">
                 <input type="file" id="fileInput" class="hidden" onchange="handleFileSelect(this)">
-                <button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="Send Lossless File">📎</button>
+                <button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="Send File">📎</button>
                 <input type="text" id="messageInput" placeholder="Message" autocomplete="off">
                 <button class="send-btn" onclick="sendMessage()">Send</button>
             </div>
@@ -102,13 +116,13 @@
     </div>
 
     <script>
-        const ADMIN_ID = "fardin"; // আপনার ফিক্সড অ্যাডমিন আইডি
+        const ADMIN_ID = "fardin"; // ফিক্সড অ্যাডমিন আইডি
         let peer = null;
         let isAdmin = false;
         let activePeerId = null;
-        let connections = {}; // { peerId: dataConnection }
-        let chatHistories = {}; // { peerId: [items] }
-        let allowedGuestIds = new Set(); // অ্যাডমিন যে আইডিগুলো তৈরি করবে
+        let connections = {}; 
+        let chatHistories = {}; 
+        let allowedGuestIds = new Set(); // অ্যাডমিন অনুমোদিত আইডি তালিকা
         let incomingFileMeta = null;
 
         function connectPortal() {
@@ -120,7 +134,6 @@
                 startPeer(ADMIN_ID);
             } else {
                 isAdmin = false;
-                // গেস্ট সরাসরি নিজের আইডি দিয়ে ঢুকবে এবং অ্যাডমিনের সাথে কানেক্ট হবে
                 startPeer(inputVal);
             }
         }
@@ -133,56 +146,57 @@
                 document.getElementById('appContainer').classList.remove('hidden');
 
                 if(isAdmin) {
-                    // অ্যাডমিন মোড
                     document.getElementById('activePeerName').innerText = "Select a chat";
                 } else {
-                    // গেস্ট মোড: সাইডবার লাগবে না, সরাসরি অ্যাডমিনের সাথে কানেক্ট হবে
                     document.getElementById('sidebarSection').classList.add('hidden');
                     connectToAdmin(assignedId);
                 }
             });
 
-            // অ্যাডমিনের ক্ষেত্রে কেউ কানেক্ট করলে হ্যান্ডেল করা
+            // সিকিউরিটি চেক: শুধু অ্যাডমিনের ক্ষেত্রে গেস্টের বৈধতা যাচাই হবে
             peer.on('connection', (conn) => {
                 if(isAdmin) {
-                    // সিকিউরিটি চেক: অ্যাডমিন কি এই গেস্ট আইডি তৈরি করেছিল?
-                    if(allowedGuestIds.has(conn.peer)) {
-                        setupConnection(conn);
+                    let guestCode = conn.metadata ? conn.metadata.guestCode : null;
+                    
+                    if(guestCode && allowedGuestIds.has(guestCode)) {
+                        setupConnection(conn, guestCode);
                     } else {
-                        // যদি অ্যাডমিন এই আইডি তৈরি না করে থাকে, কানেকশন রিজেক্ট
+                        // যদি কোড সঠিক বা অনুমোদিত না হয়, কানেকশন সাথে সাথে কেটে যাবে
                         conn.close();
                     }
                 } else {
-                    setupConnection(conn);
+                    setupConnection(conn, conn.peer);
                 }
             });
         }
 
-        function connectToAdmin(myGuestId) {
+        function connectToAdmin(myGuestCode) {
             setActivePeerDisplay(ADMIN_ID);
-            let conn = peer.connect(ADMIN_ID);
-            setupConnection(conn);
+            // গেস্ট যখন কানেক্ট করবে, সে তার গেস্ট কোডটি মেটাডাটা হিসেবে পাঠাবে
+            let conn = peer.connect(ADMIN_ID, {
+                metadata: { guestCode: myGuestCode }
+            });
+            setupConnection(conn, ADMIN_ID);
         }
 
-        function setupConnection(conn) {
-            connections[conn.peer] = conn;
-            if(!chatHistories[conn.peer]) chatHistories[conn.peer] = [];
+        function setupConnection(conn, peerKey) {
+            connections[peerKey] = conn;
+            if(!chatHistories[peerKey]) chatHistories[peerKey] = [];
 
             if(isAdmin) {
-                addChatToList(conn.peer);
-                if(!activePeerId) setActiveChat(conn.peer);
+                updateChatListItemStatus(peerKey, "Connected");
+                if(!activePeerId) setActiveChat(peerKey);
             }
 
             conn.on('data', (data) => {
-                handleIncomingData(conn.peer, data);
+                handleIncomingData(peerKey, data);
             });
 
             conn.on('close', () => {
-                removeChatSession(conn.peer);
+                removeChatSession(peerKey);
             });
         }
 
-        // অ্যাডমিন নতুন গেস্ট সেশন তৈরি করবে
         function createNewGuestSession() {
             let customId = prompt("Enter custom Guest ID for this chat (e.g., guest1, clientA):");
             if(!customId) return;
@@ -194,22 +208,33 @@
             }
 
             allowedGuestIds.add(customId);
-            alert("Guest ID created successfully: " + customId + "\nNow give this ID to the other person.");
-            
-            // সাইডবারে পেন্ডিং বা একটিভ হিসেবে যোগ করে রাখা যাক
-            addChatToList(customId);
+            addChatToList(customId, "Waiting for connection...");
+            alert("Guest ID created: " + customId + "\nGive this ID to the other person.");
         }
 
-        function addChatToList(peerId) {
+        function addChatToList(peerId, statusText) {
             const list = document.getElementById('chatList');
             if(document.getElementById('item_' + peerId)) return;
 
             const div = document.createElement('div');
             div.className = 'chat-item';
             div.id = 'item_' + peerId;
-            div.innerHTML = `<div class="chat-info"><div>${peerId}</div><div>Active Session</div></div>`;
-            div.onclick = () => setActiveChat(peerId);
+            div.innerHTML = `<div class="chat-info"><div id="name_${peerId}">${peerId}</div><div id="status_${peerId}" style="font-size:11px; color:#facc15;">${statusText}</div></div>`;
+            div.onclick = () => {
+                setActiveChat(peerId);
+                openMobileChatView();
+            };
             list.appendChild(div);
+        }
+
+        function updateChatListItemStatus(peerId, status) {
+            let statusEl = document.getElementById('status_' + peerId);
+            if(statusEl) {
+                statusEl.innerText = status;
+                statusEl.style.color = '#22c55e';
+            } else {
+                addChatToList(peerId, status);
+            }
         }
 
         function setActiveChat(peerId) {
@@ -228,6 +253,21 @@
             activePeerId = name;
         }
 
+        // মোবাইল ভিউ হ্যান্ডেল করার জন্য
+        function openMobileChatView() {
+            if(window.innerWidth <= 768) {
+                document.getElementById('sidebarSection').classList.add('mobile-hidden');
+                document.getElementById('chatMainSection').classList.add('mobile-active');
+            }
+        }
+
+        function backToSidebar() {
+            if(window.innerWidth <= 768) {
+                document.getElementById('sidebarSection').classList.remove('mobile-hidden');
+                document.getElementById('chatMainSection').classList.remove('mobile-active');
+            }
+        }
+
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
@@ -241,11 +281,10 @@
                 appendMsgToUI(text, 'sent');
                 input.value = '';
             } else {
-                alert("Not connected to this chat yet! Wait for the person to connect using the ID.");
+                alert("Connection is not active yet! Wait for the person to connect.");
             }
         }
 
-        // লসলেস ফাইল পাঠানো (Binary ArrayBuffer)
         function handleFileSelect(inputElement) {
             const file = inputElement.files[0];
             if(!file || !activePeerId) return;
@@ -258,7 +297,6 @@
 
             const conn = connections[activePeerId];
 
-            // ১. ফাইল মেটাডাটা পাঠানো (নাম, সাইজ, টাইপ)
             conn.send(JSON.stringify({
                 fileMeta: true,
                 name: file.name,
@@ -266,7 +304,6 @@
                 mime: file.type
             }));
 
-            // ২. র ফাইল বাইনারি ডাটা পাঠানো (লসলেস)
             const reader = new FileReader();
             reader.onload = function(e) {
                 const arrayBuffer = e.target.result;
@@ -292,12 +329,10 @@
                     }
                 } catch(e) {}
 
-                // টেক্সট মেসেজ
                 chatHistories[peerId].push({ type: 'text', text: data, sender: 'received' });
                 if(activePeerId === peerId) appendMsgToUI(data, 'received');
 
             } else {
-                // বাইনারি ফাইল ডাটা
                 if(incomingFileMeta) {
                     const blob = new Blob([data], { type: incomingFileMeta.mime });
                     const fileObj = { type: 'file-received', name: incomingFileMeta.name, size: incomingFileMeta.size, blob: blob, mime: incomingFileMeta.mime };
@@ -375,6 +410,7 @@
                 activePeerId = null;
                 document.getElementById('activePeerName').innerText = "None";
                 document.getElementById('messagesBox').innerHTML = '<div class="msg received">System: Chat ended and vanished.</div>';
+                backToSidebar();
             }
         }
 

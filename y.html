@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#111827">
+<title>Secure Chat</title>
+<style>
+:root{--bg:#0b1220;--side:#111a2e;--panel:#162036;--chat:#0b1329;--acc:#2563eb;--txt:#f1f5f9;--sub:#8b9ab3;--bd:#26344f;--ok:#22c55e;--warn:#facc15;--bad:#dc2626;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--txt);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Bengali",sans-serif}
+button,input,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+.btn{background:var(--acc);border:0;color:#fff;font-weight:600;padding:12px 18px;border-radius:10px;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:not-allowed}.btn.sm{padding:7px 12px;font-size:13px;border-radius:8px}
+.btn.green{background:#16a34a}.btn.danger{background:var(--bad)}.btn.ghost{background:#2a3855}
+.ico{background:none;border:0;font-size:20px;padding:6px 10px;cursor:pointer;border-radius:8px}.ico:active{background:#ffffff14}
+/* overlays */
+#auth,#dlg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,12,22,.97);z-index:50}
+#dlg{background:rgba(0,0,0,.6);z-index:60}
+.card{background:var(--side);border:1px solid var(--bd);border-radius:16px;padding:26px 22px;width:100%;max-width:340px;text-align:center}
+.card h1,.card h2{margin:6px 0 4px;font-size:21px}.card p{margin:0 0 14px;color:var(--sub);font-size:13px}
+.logo{font-size:34px}
+.card input{width:100%;padding:13px;margin-bottom:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);font-size:16px;outline:0;text-align:center}
+.card input:focus{border-color:var(--acc)}.card .btn{width:100%}
+#authMsg{margin-top:12px;font-size:13px;color:var(--warn);min-height:18px}
+#dlg .row{display:flex;gap:8px}#dlg .row .btn{width:auto}#dlg .acts{display:flex;gap:10px;margin-top:4px}
+/* layout */
+#app{display:none;position:relative;height:var(--h,100dvh);width:100%}#app.on{display:flex}
+#side{width:340px;background:var(--side);border-right:1px solid var(--bd);display:flex;flex-direction:column;min-height:0}
+#chat{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--chat)}
+header{display:flex;align-items:center;gap:8px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:var(--panel);border-bottom:1px solid var(--bd);min-height:58px}
+header .t{flex:1;min-width:0}header .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .t small{color:var(--sub);font-size:12px}
+#list{flex:1;overflow-y:auto}.hint{padding:24px;color:var(--sub);text-align:center;font-size:13px}
+.item{display:flex;gap:12px;padding:12px 14px;border-bottom:1px solid #1b2943;cursor:pointer;align-items:center}
+.item:hover,.item.act{background:#1d2a47}
+.av{position:relative;flex:none;width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:grid;place-items:center;font-weight:700}
+.dot{position:absolute;right:0;bottom:0;width:11px;height:11px;border-radius:50%;background:#64748b;border:2px solid var(--side)}.dot.on{background:var(--ok)}
+.bd{flex:1;min-width:0}.r1,.r2{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.r1 small{color:var(--sub);font-size:11px}.pv{color:var(--sub);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{background:var(--ok);color:#04210f;font-size:11px;font-weight:700;font-style:normal;border-radius:10px;padding:1px 7px}
+#emptyS{flex:1;display:grid;place-items:center;color:var(--sub);text-align:center;padding:20px}
+#cw{flex:1;display:flex;flex-direction:column;min-height:0}
+#banner{padding:8px 12px;background:#3a2f0a;color:var(--warn);font-size:13px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+#msgs{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 12px;display:flex;flex-direction:column;gap:6px}
+.b{max-width:min(80%,520px);padding:8px 12px 5px;border-radius:14px;overflow-wrap:anywhere;word-break:break-word}
+.b.me{align-self:flex-end;background:var(--acc);border-bottom-right-radius:4px}
+.b.them{align-self:flex-start;background:#26344f;border-bottom-left-radius:4px}
+.tx{white-space:pre-wrap}.mt{display:flex;justify-content:flex-end;gap:10px;font-size:11px;opacity:.7;margin-top:2px}
+.cp{background:none;border:0;font-size:11px;cursor:pointer;padding:0;text-decoration:underline}
+.file img{display:block;max-width:100%;max-height:260px;border-radius:8px;margin-bottom:6px;cursor:zoom-in}
+.frow{display:flex;gap:8px;align-items:center}.fi{font-size:24px}.fn{font-weight:600;font-size:14px}.fs{font-size:12px;opacity:.75}
+.fst{margin-top:6px;font-size:12px}.bar{height:5px;background:#0004;border-radius:3px;overflow:hidden;margin-bottom:3px}.bar i{display:block;height:100%;width:0;background:#38bdf8;transition:width .15s}
+.dl{display:inline-block;background:#0003;border:1px solid #ffffff2a;color:#fff;text-decoration:none;padding:6px 12px;border-radius:8px;font-weight:600}
+footer{display:flex;gap:8px;align-items:flex-end;padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom));background:var(--panel);border-top:1px solid var(--bd)}
+#inp{flex:1;resize:none;max-height:120px;padding:11px 14px;border-radius:20px;border:1px solid var(--bd);background:var(--bg);font-size:16px;outline:0;line-height:1.35}
+#sendB{flex:none;width:44px;height:44px;border-radius:50%;padding:0;font-size:18px}
+#toast{position:fixed;left:50%;bottom:90px;transform:translate(-50%,20px);background:#e2e8f0;color:#0f172a;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:90%;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.guest #side{display:none}.guest .back{display:none}
+.back{display:none}
+/* mobile (also forced in "desktop site" mode on phones via JS class .m) */
+.m .back{display:block}.m .guest .back{display:none}
+.m #side,.m #chat{position:absolute;inset:0;width:100%;transition:transform .25s ease}
+.m #app[data-v=chat] #side{transform:translateX(-100%)}.m #app[data-v=list] #chat{transform:translateX(100%)}
+.m .b{max-width:86%}.m #side{border-right:0}
+</style>
+</head>
+<body>
+<div id="auth"><div class="card">
+  <div class="logo">🔒</div><h1>Secure Chat</h1><p>Enter your ID to continue</p>
+  <input id="idIn" placeholder="ID" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="go">
+  <button id="go" class="btn" disabled>Loading…</button><div id="authMsg"></div>
+</div></div>
+
+<div id="app" data-v="list">
+  <aside id="side">
+    <header><div class="t"><b>Chats</b></div>
+      <button id="newB" class="btn sm green">+ New Chat</button><button id="exitB" class="ico" title="Exit & wipe all">⏻</button></header>
+    <div id="list"></div>
+  </aside>
+  <main id="chat">
+    <div id="emptyS"><div><div style="font-size:40px">💬</div>Select a chat or create a new one</div></div>
+    <div id="cw" class="hidden">
+      <header>
+        <button class="ico back" id="backB">←</button>
+        <div class="av" id="hAv"></div>
+        <div class="t"><b id="hName"></b><small id="hSt"></small></div>
+        <button class="btn sm danger" id="endB">End & Vanish</button>
+      </header>
+      <div id="banner" class="hidden"><span id="banT"></span><button class="btn sm ghost" id="invB">Copy invite link</button></div>
+      <div id="msgs"></div>
+      <footer>
+        <input type="file" id="fileIn" class="hidden" multiple>
+        <button class="ico" id="attB" title="Send file">📎</button>
+        <textarea id="inp" rows="1" placeholder="Message" autocomplete="off"></textarea>
+        <button class="btn" id="sendB">➤</button>
+      </footer>
+    </div>
+  </main>
+</div>
+
+<div id="dlg" class="hidden"><div class="card">
+  <h2 id="dT"></h2><p id="dB"></p>
+  <div class="row"><input id="dI" autocomplete="off" autocapitalize="none"><button id="dR" class="btn ghost">🎲</button></div>
+  <div class="acts"><button id="dNo" class="btn ghost">Cancel</button><button id="dOk" class="btn">OK</button></div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id), NS='fsc7-', ADMIN='fardin', CH=65536, RASTER=/^image\/(png|jpe?g|gif|webp|bmp|avif)$/;
+const ICE=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.cloudflare.com:3478']},
+ {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turns:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
+const pid=c=>NS+c, sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const ss={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const okId=v=>/^[a-z0-9](?:[a-z0-9_-]{0,28}[a-z0-9])?$/.test(v);
+const fmtTime=ts=>new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+const fmtSize=n=>n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB';
+const rnd=()=>{const a='abcdefghjkmnpqrstuvwxyz23456789',r=crypto.getRandomValues(new Uint8Array(6));return [...r].map(x=>a[x%a.length]).join('')};
+const mk=(code,name)=>({code,name,conn:null,online:false,msgs:[],unread:0,note:'',seen:Date.now(),rx:{}});
+
+let peer,isAdmin=false,me='',booted=false,quitting=false,active=null,retryT=null,tries=0,chats={},allowed=new Set(),tT;
+
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>e.classList.remove('show'),2600)}
+async function copyText(t){try{await navigator.clipboard.writeText(t);toast('Copied')}catch(e){toast('Copy failed')}}
+const invite=c=>location.origin+location.pathname+'#j='+c;
+const saveCodes=()=>ss.set('sc_codes',[...allowed].join(','));
+
+function dlg(title,o={}){return new Promise(res=>{
+  $('dT').textContent=title;$('dB').textContent=o.text||'';
+  const i=$('dI');i.value='';i.placeholder=o.ph||'';i.parentNode.classList.toggle('hidden',!o.input);
+  $('dOk').textContent=o.ok||'OK';$('dOk').className='btn'+(o.danger?' danger':'');
+  $('dlg').classList.remove('hidden');if(o.input)setTimeout(()=>i.focus(),60);
+  const done=v=>{$('dlg').classList.add('hidden');i.onkeydown=null;res(v)};
+  $('dOk').onclick=()=>done(o.input?i.value:true);$('dNo').onclick=()=>done(null);
+  $('dR').onclick=()=>{i.value=rnd()};i.onkeydown=e=>{if(e.key==='Enter')done(i.value)};
+})}
+
+/* ---------- viewport / mobile mode ---------- */
+const isM=()=>innerWidth<=768||(matchMedia('(pointer:coarse)').matches&&Math.min(screen.width,screen.height)<=820);
+const vv=window.visualViewport;
+function fit(){document.documentElement.style.setProperty('--h',(vv?vv.height:innerHeight)+'px');document.documentElement.classList.toggle('m',isM());if(vv&&vv.height<innerHeight)scrollTo(0,0);scrollEnd()}
+addEventListener('resize',fit);vv&&vv.addEventListener('resize',fit);fit();
+const scrollEnd=()=>{const M=$('msgs');M.scrollTop=M.scrollHeight};
+const setView=v=>{$('app').dataset.v=v};
+
+/* ---------- login ---------- */
+function load(srcs,cb){const s=document.createElement('script');s.src=srcs[0];s.onload=cb;
+  s.onerror=()=>srcs.length>1?load(srcs.slice(1),cb):($('authMsg').textContent='Could not load PeerJS. Check your internet.');document.head.appendChild(s)}
+load(['https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js','https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js'],()=>{
+  $('go').disabled=false;$('go').textContent='Enter';
+  const h=location.hash.match(/^#j=([a-z0-9_-]+)/i);if(h){history.replaceState(null,'',location.pathname);ss.set('sc_id',h[1].toLowerCase())}
+  const saved=ss.get('sc_id');if(saved&&okId(saved)){$('idIn').value=saved;go(saved)}
+  const m=ss.get('sc_msg');if(m){$('authMsg').textContent=m;ss.del('sc_msg')}
+});
+function enter(){const v=$('idIn').value.trim().toLowerCase();if(!okId(v))return $('authMsg').textContent='Use letters/numbers only (- and _ allowed).';go(v)}
+function go(v){me=v;isAdmin=v===ADMIN;ss.set('sc_id',v);$('go').disabled=true;$('authMsg').textContent='Connecting…';tries=0;start()}
+$('go').onclick=enter;$('idIn').addEventListener('keydown',e=>{if(e.key==='Enter')enter()});
+
+function fail(msg){quitting=true;ss.del('sc_id');ss.set('sc_msg',msg);location.reload()}
+
+function start(){
+  peer=new Peer(pid(me),{config:{iceServers:ICE}});
+  peer.on('open',()=>{tries=0;if(!booted)boot();else if(!isAdmin)sched(100)});
+  peer.on('disconnected',()=>{if(!quitting&&booted)setTimeout(()=>{try{peer.reconnect()}catch(e){}},1500)});
+  peer.on('connection',onIncoming);
+  peer.on('error',e=>{
+    const t=e.type;
+    if(t==='unavailable-id'){
+      if(booted)return;
+      if(tries++<12){$('authMsg').textContent=isAdmin?'Admin ID still registered from a previous session. Retrying…':'This ID is in use right now. Retrying…';peer.destroy();setTimeout(start,3000)}
+      else fail('This ID is already in use. Try a different one.');return}
+    if(t==='peer-unavailable'){
+      if(isAdmin)return;const c=chats[ADMIN];
+      if(c){c.note='Admin is offline — will connect automatically';if(c.conn&&!c.conn.open){try{c.conn.close()}catch(_){}c.conn=null}render(ADMIN);sched()}return}
+    if(['network','server-error','socket-error','socket-closed'].includes(t)){
+      if(!booted){peer.destroy();setTimeout(start,3000)}else setTimeout(()=>{try{peer.reconnect()}catch(_){}},2500);return}
+    toast('Error: '+t)});
+}
+
+function boot(){
+  booted=true;$('auth').classList.add('hidden');$('app').classList.add('on');
+  document.body.classList.toggle('guest',!isAdmin);$('app').classList.toggle('guest',!isAdmin);
+  if(isAdmin){(ss.get('sc_codes')||'').split(',').filter(okId).forEach(c=>{allowed.add(c);chats[c]=mk(c,c)});renderList()}
+  else{chats[ADMIN]=mk(ADMIN,'Admin');openChat(ADMIN);guestConnect()}
+  setInterval(beat,8000);fit();
+}
+
+/* ---------- connections ---------- */
+function onIncoming(conn){
+  if(!isAdmin){conn.close();return}
+  const code=conn.metadata&&conn.metadata.code;
+  if(typeof code!=='string'||!allowed.has(code)||conn.peer!==pid(code)){
+    const deny=()=>{try{conn.send({t:'deny'})}catch(e){}setTimeout(()=>conn.close(),400)};
+    conn.open?deny():conn.on('open',deny);return}
+  const c=chats[code];if(c.conn&&c.conn!==conn){const o=c.conn;c.conn=null;try{o.close()}catch(e){}}
+  attach(c,conn);
+}
+function attach(c,conn){
+  c.conn=conn;c.seen=Date.now();
+  const up=()=>{if(c.conn!==conn)return;c.seen=Date.now();if(isAdmin){c.online=true;c.note='';try{conn.send({t:'ready'})}catch(e){}render(c.code)}};
+  conn.open?up():conn.on('open',up);
+  conn.on('data',d=>{c.seen=Date.now();onData(c,d)});
+  const down=()=>{if(c.conn!==conn)return;c.conn=null;c.online=false;if(!isAdmin){c.note=c.note||'Reconnecting…';sched()}render(c.code)};
+  conn.on('close',down);conn.on('error',down);
+}
+function sched(d=2000){if(isAdmin||quitting||retryT)return;retryT=setTimeout(()=>{retryT=null;guestConnect()},d)}
+function guestConnect(){
+  const c=chats[ADMIN];if(!c||quitting||!peer||peer.destroyed)return;
+  if(c.conn&&c.conn.open)return;
+  if(peer.disconnected){try{peer.reconnect()}catch(e){}return sched(1500)}
+  if(c.conn){const o=c.conn;c.conn=null;try{o.close()}catch(e){}}
+  if(!c.note)c.note='Connecting…';render(ADMIN);
+  const conn=peer.connect(pid(ADMIN),{reliable:true,metadata:{code:me}});attach(c,conn);
+  setTimeout(()=>{if(c.conn===conn&&!conn.open){try{conn.close()}catch(e){}if(c.conn===conn)c.conn=null;sched(300)}},9000);
+}
+function beat(){for(const c of Object.values(chats)){const cn=c.conn;if(cn&&cn.open){try{cn.send({t:'ping'})}catch(e){}if(Date.now()-c.seen>25000)try{cn.close()}catch(e){}}}}
+addEventListener('online',()=>{if(peer&&booted){if(peer.disconnected)try{peer.reconnect()}catch(e){}sched(100)}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden||!booted)return;
+  if(peer.disconnected)try{peer.reconnect()}catch(e){}sched(100);const c=chats[active];if(c){c.unread=0;renderList();title()}});
+
+/* ---------- incoming data ---------- */
+function onData(c,d){
+  if(!d||typeof d!=='object')return;
+  switch(d.t){
+    case 'ready':c.online=true;c.note='';render(c.code);break;
+    case 'deny':c.note='Waiting for the admin to approve your code…';render(c.code);break;
+    case 'end':wipe(c.code,true);break;
+    case 'msg':if(typeof d.text==='string')add(c,{k:'text',me:false,text:d.text.slice(0,20000),ts:Date.now()});break;
+    case 'fm':{const m={k:'file',me:false,name:String(d.name).slice(0,200),size:+d.size||0,mime:String(d.mime||''),parts:[],got:0,ts:Date.now(),done:false};c.rx[d.id]=m;add(c,m);break}
+    case 'fc':{const m=c.rx[d.id];if(m&&d.d){m.parts.push(d.d);m.got+=d.d.byteLength;prog(m)}break}
+    case 'fe':{const m=c.rx[d.id];if(m){m.blob=new Blob(m.parts,{type:m.mime});m.parts=null;m.done=true;delete c.rx[d.id];prog(m)}break}
+  }
+}
+
+/* ---------- rendering ---------- */
+function title(){const n=Object.values(chats).reduce((a,c)=>a+c.unread,0);document.title=(n?'('+n+') ':'')+'Secure Chat'}
+function render(code){renderList();if(active===code){renderHead();renderBanner()}}
+function renderList(){
+  if(!isAdmin)return;const L=$('list');L.textContent='';const cs=Object.values(chats);
+  if(!cs.length)L.append(el('div','hint','No chats yet. Tap “+ New Chat” to create a guest code.'));
+  cs.forEach(c=>{const last=c.msgs[c.msgs.length-1];
+    const it=el('div','item'+(c.code===active?' act':''));it.onclick=()=>openChat(c.code);
+    const av=el('div','av',c.name[0].toUpperCase());av.append(el('i','dot'+(c.online?' on':'')));
+    const bd=el('div','bd'),r1=el('div','r1'),r2=el('div','r2');
+    r1.append(el('b','',c.name),el('small','',last?fmtTime(last.ts):''));
+    r2.append(el('span','pv',last?(last.me?'You: ':'')+(last.k==='file'?'📎 '+last.name:last.text):(c.online?'Connected':'Waiting for connection…')));
+    if(c.unread)r2.append(el('em','badge',c.unread>99?'99+':c.unread));
+    bd.append(r1,r2);it.append(av,bd);L.append(it)});
+  title();
+}
+function renderHead(){
+  const c=chats[active];if(!c)return;
+  $('hName').textContent=c.name;$('hAv').textContent=c.name[0].toUpperCase();
+  $('hSt').textContent=c.online?'online':(c.note||(isAdmin?'waiting for guest to connect':'connecting…'));
+  $('hSt').style.color=c.online?'var(--ok)':'var(--sub)';
+  $('endB').textContent=isAdmin?'End & Vanish':'End';
+}
+function renderBanner(){
+  const c=chats[active],b=$('banner');if(!c||c.online){b.classList.add('hidden');return}
+  b.classList.remove('hidden');
+  $('banT').textContent=isAdmin?'Waiting for “'+c.name+'” to connect…':(c.note||'Connecting…');
+  $('invB').classList.toggle('hidden',!isAdmin);
+}
+function openChat(code){
+  const c=chats[code];if(!c)return;active=code;c.unread=0;
+  $('emptyS').classList.add('hidden');$('cw').classList.remove('hidden');
+  const M=$('msgs');M.textContent='';c.msgs.forEach(m=>M.append(bubble(m)));
+  renderList();renderHead();renderBanner();scrollEnd();
+  if(isAdmin&&isM()){setView('chat');if(!(history.state&&history.state.c))history.pushState({c:1},'')}else setView('chat');
+}
+function toList(){active=null;setView('list');$('cw').classList.add('hidden');$('emptyS').classList.remove('hidden');renderList()}
+addEventListener('popstate',()=>{if(isAdmin&&active)toList()});
+$('backB').onclick=()=>{history.state&&history.state.c?history.back():toList()};
+
+function bubble(m){
+  const b=el('div','b '+(m.me?'me':'them')),meta=el('div','mt');
+  if(m.k==='text'){b.append(el('div','tx',m.text));const cp=el('button','cp','Copy');cp.onclick=()=>copyText(m.text);meta.append(cp)}
+  else{
+    const f=el('div','file'),url=()=>m.url||(m.url=URL.createObjectURL(m.blob));
+    if(m.done&&m.blob&&RASTER.test(m.mime)){const im=el('img');im.src=url();im.alt=m.name;im.onclick=()=>window.open(url());f.append(im)}
+    const row=el('div','frow'),nm=el('div');nm.append(el('div','fn',m.name),el('div','fs',fmtSize(m.size)));
+    row.append(el('span','fi','📄'),nm);f.append(row);
+    const st=el('div','fst');m.st=st;
+    if(m.failed)st.textContent='⚠ Transfer failed';
+    else if(!m.done){const bar=el('div','bar');m.fill=el('i');bar.append(m.fill);m.pct=el('span','',pctOf(m)+'%');st.append(bar,m.pct);m.fill.style.width=pctOf(m)+'%'}
+    else if(m.me)st.textContent='✓ Sent';
+    else{const a=el('a','dl','⬇ Download');a.href=url();a.download=m.name;st.append(a)}
+    f.append(st);b.append(f);
+  }
+  meta.prepend(el('span','',fmtTime(m.ts)));b.append(meta);m.el=b;return b;
+}
+const pctOf=m=>m.size?Math.min(100,Math.floor(m.got/m.size*100)):0;
+function prog(m){
+  if(!m.el||!m.el.isConnected)return;
+  if(m.done||m.failed){const n=bubble(m);m.el.replaceWith(n);scrollEnd()}
+  else if(m.fill){m.fill.style.width=pctOf(m)+'%';m.pct.textContent=pctOf(m)+'%'}
+}
+function add(c,m){
+  c.msgs.push(m);const vis=active===c.code&&!document.hidden;
+  if(!m.me&&!vis){c.unread++}
+  if(active===c.code){const M=$('msgs'),near=M.scrollHeight-M.scrollTop-M.clientHeight<140;M.append(bubble(m));if(m.me||near)scrollEnd()}
+  renderList();
+}
+
+/* ---------- sending ---------- */
+function send(){
+  const c=chats[active],t=$('inp').value.trim();if(!c||!t)return;
+  if(!c.online||!c.conn||!c.conn.open)return toast('Not connected yet — please wait a moment');
+  try{c.conn.send({t:'msg',text:t})}catch(e){return toast('Send failed')}
+  add(c,{k:'text',me:true,text:t,ts:Date.now()});$('inp').value='';grow();
+}
+async function sendFiles(files){
+  const c=chats[active];
+  for(const f of files){
+    if(!c||!c.online||!c.conn||!c.conn.open)return toast('Not connected yet — please wait a moment');
+    const id=Math.random().toString(36).slice(2),cn=c.conn;
+    const m={k:'file',me:true,name:f.name,size:f.size,mime:f.type,blob:f,got:0,ts:Date.now(),done:false};add(c,m);
+    try{
+      cn.send({t:'fm',id,name:f.name,size:f.size,mime:f.type});
+      for(let o=0;o<f.size;o+=CH){
+        while(cn.open&&cn.dataChannel&&cn.dataChannel.bufferedAmount>2e6)await sleep(40);
+        if(!cn.open)throw 0;
+        cn.send({t:'fc',id,d:await f.slice(o,o+CH).arrayBuffer()});m.got=Math.min(o+CH,f.size);prog(m);
+      }
+      cn.send({t:'fe',id});m.done=true;
+    }catch(e){m.failed=true}
+    prog(m);
+  }
+}
+function grow(){const t=$('inp');t.style.height='auto';t.style.height=Math.min(t.scrollHeight,120)+'px'}
+$('inp').addEventListener('input',grow);
+$('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!isM()){e.preventDefault();send()}});
+$('sendB').addEventListener('mousedown',e=>e.preventDefault());
+$('sendB').onclick=send;
+$('attB').onclick=()=>$('fileIn').click();
+$('fileIn').onchange=e=>{sendFiles([...e.target.files]);e.target.value=''};
+$('chat').addEventListener('dragover',e=>e.preventDefault());
+$('chat').addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files.length)sendFiles([...e.dataTransfer.files])});
+$('invB').onclick=()=>copyText(invite(active));
+
+/* ---------- admin actions ---------- */
+$('newB').onclick=async()=>{
+  let v=await dlg('New guest chat',{text:'Create a code and give it to the other person. Only this code can connect.',input:1,ph:'Guest code (e.g. client1)',ok:'Create'});
+  if(v===null)return;v=v.trim().toLowerCase();
+  if(!okId(v))return toast('Invalid code. Use letters, numbers, - or _');
+  if(v===ADMIN||allowed.has(v))return toast('This code is already used');
+  allowed.add(v);saveCodes();chats[v]=mk(v,v);openChat(v);copyText(invite(v));
+};
+$('endB').onclick=async()=>{
+  const c=chats[active];if(!c)return;
+  if(!await dlg('End & vanish?',{text:'The chat, files and code are deleted permanently for both sides.',ok:'End & Vanish',danger:true}))return;
+  if(c.conn&&c.conn.open)try{c.conn.send({t:'end'})}catch(e){}
+  setTimeout(()=>wipe(c.code,false),200);
+};
+$('exitB').onclick=async()=>{
+  if(!await dlg('Exit & wipe everything?',{text:'All chats are ended and deleted.',ok:'Exit',danger:true}))return;
+  Object.values(chats).forEach(c=>{if(c.conn&&c.conn.open)try{c.conn.send({t:'end'})}catch(e){}});
+  setTimeout(()=>{ss.del('sc_codes');fail('')},300);
+};
+function wipe(code,remote){
+  const c=chats[code];if(!c)return;
+  c.msgs.forEach(m=>m.url&&URL.revokeObjectURL(m.url));
+  const cn=c.conn;c.conn=null;delete chats[code];if(cn)try{cn.close()}catch(e){}
+  if(isAdmin){allowed.delete(code);saveCodes();if(active===code)toList();renderList();if(remote)toast(c.name+' ended the chat')}
+  else fail(remote?'The admin ended this chat.':'Chat ended.');
+}
+addEventListener('beforeunload',e=>{if(isAdmin&&!quitting&&Object.keys(chats).length){e.preventDefault();e.returnValue=''}});
+</script>
+</body>
+</html>

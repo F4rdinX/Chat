@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Relay</title>
+    <title>Secure Chat</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -11,19 +11,18 @@
             --bg-sidebar: #1e293b;
             --bg-chat: #0b1329;
             --accent: #2563eb;
-            --accent-hover: #1d4ed8;
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
             --border: #334155;
         }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-main); color: var(--text-main); margin: 0; padding: 0; height: 100vh; display: flex; overflow: hidden; }
         
-        /* Modal Overlay */
-        #authModal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-box { background: var(--bg-sidebar); padding: 25px; border-radius: 12px; width: 320px; border: 1px solid var(--border); text-align: center; }
+        /* Single Modal */
+        #authModal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-box { background: var(--bg-sidebar); padding: 30px; border-radius: 12px; width: 320px; border: 1px solid var(--border); text-align: center; }
         .modal-box h3 { margin-top: 0; color: var(--text-main); }
-        .modal-box input { width: 100%; padding: 10px; margin: 10px 0 15px 0; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-main); color: white; box-sizing: border-box; }
-        .modal-box button { width: 100%; padding: 10px; background: var(--accent); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .modal-box input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-main); color: white; box-sizing: border-box; font-size: 16px; outline: none; text-align: center;}
+        .modal-box button { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
         
         /* App Layout */
         .app-container { display: flex; width: 100%; height: 100%; }
@@ -32,88 +31,96 @@
         .sidebar { width: 300px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
         .sidebar-header { padding: 15px; background: #111827; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
         .chat-list { flex: 1; overflow-y: auto; }
-        .chat-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .chat-item { padding: 14px 15px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
         .chat-item:hover, .chat-item.active { background: #334155; }
-        .chat-info div:first-child { font-weight: bold; font-size: 14px; }
+        .chat-info div:first-child { font-weight: bold; font-size: 15px; }
         .chat-info div:last-child { font-size: 12px; color: var(--text-sub); }
         
         /* Chat Main Area */
         .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); }
         .chat-header { padding: 15px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .messages-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; word-break: break-all; font-size: 14px; }
+        .messages-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .msg { padding: 10px 14px; border-radius: 8px; max-width: 75%; word-break: break-all; font-size: 15px; }
         .msg.sent { background: var(--accent); align-self: flex-end; }
         .msg.received { background: #334155; align-self: flex-start; }
         
+        /* File Card inside chat */
+        .file-card { background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; gap: 10px; margin-top: 5px; border: 1px solid rgba(255,255,255,0.1); }
+        .file-card a { color: #38bdf8; text-decoration: none; font-weight: bold; font-size: 13px; }
+        .file-card a:hover { text-decoration: underline; }
+
         /* Input Area */
-        .input-area { padding: 15px; background: var(--bg-sidebar); display: flex; gap: 10px; border-top: 1px solid var(--border); }
-        .input-area input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-main); color: white; font-size: 15px; outline: none; }
-        .input-area button { padding: 0 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .input-area { padding: 15px; background: var(--bg-sidebar); display: flex; gap: 10px; border-top: 1px solid var(--border); align-items: center; }
+        .input-area input[type="text"] { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-main); color: white; font-size: 15px; outline: none; }
+        .attach-btn { background: #475569; color: white; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .attach-btn:hover { background: #64748b; }
+        .send-btn { padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         
-        .btn-danger { background: #dc2626 !important; font-size: 12px; padding: 6px 10px; border-radius: 4px; border: none; color: white; cursor: pointer; }
+        .btn-danger { background: #dc2626 !important; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: none; color: white; cursor: pointer; }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <!-- Auth Modal for Role Selection -->
+    <!-- Single Clean Modal -->
     <div id="authModal">
         <div class="modal-box">
-            <h3>Secure Chat Portal</h3>
-            <p style="font-size: 13px; color: var(--text-sub);">Enter Admin Key or Guest ID</p>
+            <h3>Secure Chat</h3>
+            <p style="font-size: 13px; color: var(--text-sub);">Enter your ID to continue</p>
             <input type="text" id="userInputId" placeholder="Enter ID..." autocomplete="off">
-            <button onclick="initializePortal()">Enter Chat</button>
+            <button onclick="connectPortal()">Enter</button>
         </div>
     </div>
 
-    <!-- Main App UI (Hidden initially) -->
+    <!-- Main App UI -->
     <div class="app-container hidden" id="appContainer">
-        <!-- Sidebar for Admin / Chat List -->
+        <!-- Sidebar -->
         <div class="sidebar" id="sidebarSection">
             <div class="sidebar-header">
-                <span>Active Chats</span>
-                <button onclick="createNewGuestSession()" style="background: #16a34a; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">+ New Chat</button>
+                <span>Chats</span>
+                <button onclick="createNewGuestSession()" style="background: #16a34a; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;">+ New Chat</button>
             </div>
-            <div class="chat-list" id="chatList">
-                <!-- Active chat items will appear here -->
-            </div>
+            <div class="chat-list" id="chatList"></div>
         </div>
 
         <!-- Chat Window -->
         <div class="chat-main">
             <div class="chat-header">
-                <div>Connected with: <span id="activePeerName" style="color: #38bdf8; font-weight: bold;">None</span></div>
-                <button class="btn-danger" onclick="endCurrentChat()">End & Vanish Chat</button>
+                <div>Chat with: <span id="activePeerName" style="color: #38bdf8; font-weight: bold;">None</span></div>
+                <button class="btn-danger" id="endChatBtn" onclick="endCurrentChat()">End & Vanish</button>
             </div>
             <div class="messages-box" id="messagesBox">
-                <div class="msg received">System: Welcome to secure ephemeral channel.</div>
+                <div class="msg received">System: Ready.</div>
             </div>
             <div class="input-area">
+                <input type="file" id="fileInput" class="hidden" onchange="handleFileSelect(this)">
+                <button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="Send Lossless File">📎</button>
                 <input type="text" id="messageInput" placeholder="Message" autocomplete="off">
-                <button onclick="sendMessage()">Send</button>
+                <button class="send-btn" onclick="sendMessage()">Send</button>
             </div>
         </div>
     </div>
 
     <script>
-        const ADMIN_MASTER_KEY = "fardin_admin_master_key_999"; // আপনার গোপন অ্যাডমিন কি
+        const ADMIN_ID = "fardin"; // আপনার ফিক্সড অ্যাডমিন আইডি
         let peer = null;
         let isAdmin = false;
         let activePeerId = null;
         let connections = {}; // { peerId: dataConnection }
-        let chatHistories = {}; // { peerId: [messages] }
+        let chatHistories = {}; // { peerId: [items] }
+        let allowedGuestIds = new Set(); // অ্যাডমিন যে আইডিগুলো তৈরি করবে
+        let incomingFileMeta = null;
 
-        function initializePortal() {
+        function connectPortal() {
             const inputVal = document.getElementById('userInputId').value.trim();
             if(!inputVal) return alert("Please enter an ID!");
 
-            if(inputVal === ADMIN_MASTER_KEY) {
+            if(inputVal.toLowerCase() === ADMIN_ID) {
                 isAdmin = true;
-                // Admin gets a unique master peer id
-                startPeer("fardin_admin_" + Math.floor(Math.random() * 1000));
+                startPeer(ADMIN_ID);
             } else {
                 isAdmin = false;
-                // Guest connects directly using the ID they typed (which Admin gave them)
+                // গেস্ট সরাসরি নিজের আইডি দিয়ে ঢুকবে এবং অ্যাডমিনের সাথে কানেক্ট হবে
                 startPeer(inputVal);
             }
         }
@@ -125,30 +132,35 @@
                 document.getElementById('authModal').classList.add('hidden');
                 document.getElementById('appContainer').classList.remove('hidden');
 
-                if(!isAdmin) {
-                    // If guest, automatically connect to the admin master peer
-                    // For simplicity, guest connects to a fixed or dynamic admin handle
-                    // Or we can let guest connect to whatever ID they entered if it's paired
-                    document.getElementById('sidebarSection').classList.add('hidden'); // Guests don't need sidebar
-                    connectToAdmin();
+                if(isAdmin) {
+                    // অ্যাডমিন মোড
+                    document.getElementById('activePeerName').innerText = "Select a chat";
                 } else {
-                    alert("Admin Logged In! You can create new guest sessions.");
+                    // গেস্ট মোড: সাইডবার লাগবে না, সরাসরি অ্যাডমিনের সাথে কানেক্ট হবে
+                    document.getElementById('sidebarSection').classList.add('hidden');
+                    connectToAdmin(assignedId);
                 }
             });
 
+            // অ্যাডমিনের ক্ষেত্রে কেউ কানেক্ট করলে হ্যান্ডেল করা
             peer.on('connection', (conn) => {
-                setupConnection(conn);
+                if(isAdmin) {
+                    // সিকিউরিটি চেক: অ্যাডমিন কি এই গেস্ট আইডি তৈরি করেছিল?
+                    if(allowedGuestIds.has(conn.peer)) {
+                        setupConnection(conn);
+                    } else {
+                        // যদি অ্যাডমিন এই আইডি তৈরি না করে থাকে, কানেকশন রিজেক্ট
+                        conn.close();
+                    }
+                } else {
+                    setupConnection(conn);
+                }
             });
         }
 
-        function connectToAdmin() {
-            // Guest connecting to admin (admin id pattern starts with fardin_admin_)
-            // For production, the guest inputs the exact Admin-generated Guest ID
-            // Here we map the session. Let's make guest connect to the specific ID they used.
-            let adminTarget = prompt("Enter Admin's active ID to connect:", "");
-            if(!adminTarget) return;
-
-            let conn = peer.connect(adminTarget);
+        function connectToAdmin(myGuestId) {
+            setActivePeerDisplay(ADMIN_ID);
+            let conn = peer.connect(ADMIN_ID);
             setupConnection(conn);
         }
 
@@ -158,18 +170,11 @@
 
             if(isAdmin) {
                 addChatToList(conn.peer);
-                setActiveChat(conn.peer);
-            } else {
-                setActivePeerDisplay(conn.peer);
+                if(!activePeerId) setActiveChat(conn.peer);
             }
 
             conn.on('data', (data) => {
-                chatHistories[conn.peer].push({text: data, sender: 'received'});
-                if(activePeerId === conn.peer) {
-                    appendMsgToUI(data, 'received');
-                } else {
-                    // Highlight unread if needed
-                }
+                handleIncomingData(conn.peer, data);
             });
 
             conn.on('close', () => {
@@ -177,10 +182,22 @@
             });
         }
 
+        // অ্যাডমিন নতুন গেস্ট সেশন তৈরি করবে
         function createNewGuestSession() {
-            let guestId = "guest_" + Math.random().toString(36).substring(7);
-            prompt("Give this Guest ID to the person:", guestId);
-            // Admin listens for incoming connection from this guest ID
+            let customId = prompt("Enter custom Guest ID for this chat (e.g., guest1, clientA):");
+            if(!customId) return;
+            customId = customId.trim();
+
+            if(allowedGuestIds.has(customId)) {
+                alert("This ID already exists!");
+                return;
+            }
+
+            allowedGuestIds.add(customId);
+            alert("Guest ID created successfully: " + customId + "\nNow give this ID to the other person.");
+            
+            // সাইডবারে পেন্ডিং বা একটিভ হিসেবে যোগ করে রাখা যাক
+            addChatToList(customId);
         }
 
         function addChatToList(peerId) {
@@ -199,17 +216,11 @@
             activePeerId = peerId;
             document.getElementById('activePeerName').innerText = peerId;
             
-            // Highlight sidebar
             document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
             let item = document.getElementById('item_' + peerId);
             if(item) item.classList.add('active');
 
-            // Load history
-            const box = document.getElementById('messagesBox');
-            box.innerHTML = '';
-            if(chatHistories[peerId]) {
-                chatHistories[peerId].forEach(m => appendMsgToUI(m.text, m.sender));
-            }
+            renderChatHistory(peerId);
         }
 
         function setActivePeerDisplay(name) {
@@ -224,12 +235,93 @@
 
             if(connections[activePeerId] && connections[activePeerId].open) {
                 connections[activePeerId].send(text);
-                chatHistories[activePeerId].push({text: text, sender: 'sent'});
+                
+                const msgObj = { type: 'text', text: text, sender: 'sent' };
+                chatHistories[activePeerId].push(msgObj);
                 appendMsgToUI(text, 'sent');
                 input.value = '';
             } else {
-                alert("Connection is not active!");
+                alert("Not connected to this chat yet! Wait for the person to connect using the ID.");
             }
+        }
+
+        // লসলেস ফাইল পাঠানো (Binary ArrayBuffer)
+        function handleFileSelect(inputElement) {
+            const file = inputElement.files[0];
+            if(!file || !activePeerId) return;
+
+            if(!connections[activePeerId] || !connections[activePeerId].open) {
+                alert("Connection is not active!");
+                inputElement.value = '';
+                return;
+            }
+
+            const conn = connections[activePeerId];
+
+            // ১. ফাইল মেটাডাটা পাঠানো (নাম, সাইজ, টাইপ)
+            conn.send(JSON.stringify({
+                fileMeta: true,
+                name: file.name,
+                size: file.size,
+                mime: file.type
+            }));
+
+            // ২. র ফাইল বাইনারি ডাটা পাঠানো (লসলেস)
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const arrayBuffer = e.target.result;
+                conn.send(arrayBuffer);
+
+                const fileObj = { type: 'file-sent', name: file.name, size: file.size, buffer: arrayBuffer, mime: file.type };
+                chatHistories[activePeerId].push(fileObj);
+                appendFileCardToUI(fileObj, 'sent');
+                inputElement.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function handleIncomingData(peerId, data) {
+            if(!chatHistories[peerId]) chatHistories[peerId] = [];
+
+            if(typeof data === 'string') {
+                try {
+                    let parsed = JSON.parse(data);
+                    if(parsed.fileMeta) {
+                        incomingFileMeta = parsed;
+                        return;
+                    }
+                } catch(e) {}
+
+                // টেক্সট মেসেজ
+                chatHistories[peerId].push({ type: 'text', text: data, sender: 'received' });
+                if(activePeerId === peerId) appendMsgToUI(data, 'received');
+
+            } else {
+                // বাইনারি ফাইল ডাটা
+                if(incomingFileMeta) {
+                    const blob = new Blob([data], { type: incomingFileMeta.mime });
+                    const fileObj = { type: 'file-received', name: incomingFileMeta.name, size: incomingFileMeta.size, blob: blob, mime: incomingFileMeta.mime };
+                    chatHistories[peerId].push(fileObj);
+                    if(activePeerId === peerId) appendFileCardToUI(fileObj, 'received');
+                    incomingFileMeta = null;
+                }
+            }
+        }
+
+        function renderChatHistory(peerId) {
+            const box = document.getElementById('messagesBox');
+            box.innerHTML = '';
+            if(!chatHistories[peerId]) return;
+
+            chatHistories[peerId].forEach(item => {
+                if(item.type === 'text') {
+                    appendMsgToUI(item.text, item.sender);
+                } else if(item.type === 'file-sent') {
+                    appendFileCardToUI(item, 'sent');
+                } else if(item.type === 'file-received') {
+                    appendFileCardToUI(item, 'received');
+                }
+            });
         }
 
         function appendMsgToUI(text, type) {
@@ -237,6 +329,28 @@
             const div = document.createElement('div');
             div.className = `msg ${type}`;
             div.textContent = text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function appendFileCardToUI(fileObj, type) {
+            const box = document.getElementById('messagesBox');
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            
+            let blob = fileObj.blob;
+            if(!blob && fileObj.buffer) {
+                blob = new Blob([fileObj.buffer], { type: fileObj.mime });
+            }
+            const url = URL.createObjectURL(blob);
+            const sizeKB = (fileObj.size / 1024).toFixed(1);
+
+            div.innerHTML = `
+                <div>📎 <b>${fileObj.name}</b> (${sizeKB} KB)</div>
+                <div class="file-card">
+                    <a href="${url}" download="${fileObj.name}">Download Lossless File</a>
+                </div>
+            `;
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
         }
@@ -252,6 +366,7 @@
         function removeChatSession(peerId) {
             delete connections[peerId];
             delete chatHistories[peerId];
+            allowedGuestIds.delete(peerId);
             
             let item = document.getElementById('item_' + peerId);
             if(item) item.remove();
